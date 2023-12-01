@@ -1,26 +1,37 @@
-from music21 import converter, instrument, note, chord
+from music21 import converter, instrument, note, chord, midi
 
-notes = []
-count = 0
-count1 = 0
-midi = converter.parse("gary_jules-mad_world.mid")
-notes_to_parse = None
-parts = instrument.partitionByInstrument(midi)
-if parts: # file has instrument parts
-    notes_to_parse = parts.parts[0].recurse()
-else: # file has notes in a flat structure
-    notes_to_parse = midi.flat.notes
-for element in notes_to_parse:
-    count1 += 1
-    try:
-        print(element.pitches, element.duration)
-        count += 1
-    except:
+
+
+class Midi:
+
+    def __init__(self, path, quantize=True):
+        '''
+        Initializes the MIDI by opening and storing the file associated with the 
+        file path
+        '''
+        self.path = path
+
+        # Store the score object
+        self.score = converter.parse(self.path, quantizePost=quantize)
+    
+     
+    def get_notes(self):
+        '''
+        Get a list of Note objects
+        '''
         pass
-    if isinstance(element, note.Note):
-        notes.append(str(element.pitch))
-    elif isinstance(element, chord.Chord):
-        notes.append('.'.join(str(n) for n in element.normalOrder))
 
-print(count)
-print(count1)
+    def set_instrument(self,instrument, part=0):
+        self.score.parts[part].insert(0, instrument)
+
+    def export(self, output_path):
+       self.score.write('midi', output_path)
+
+
+
+
+file_path = '../data/midis/Turchetto, Andrea, Variations on a Theme by Mozart, QihjMKKNdo0.mid'
+m = Midi(file_path)
+m.set_instrument(instrument.Violin)
+m.export('./out_violin.midi')
+
