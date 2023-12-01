@@ -32,6 +32,6 @@ class Midi:
 
 file_path = '../data/midis/Turchetto, Andrea, Variations on a Theme by Mozart, QihjMKKNdo0.mid'
 m = Midi(file_path)
-m.set_instrument(instrument.Violin)
+m.set_instrument(instrument.Violin())
 m.export('./out_violin.midi')
 
