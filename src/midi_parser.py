@@ -52,58 +52,48 @@ class Midi:
         self.notes = sequence.copy()
     
     def export(self, path):
-        # TODO: Figure out time
         midi = MidiFile()
         track = MidiTrack()
         midi.tracks.append(track)
         played_note_compensation = 0
         notes = deepcopy(self.notes)
         start = 0
-        for i  in range(15): #len(notes)
+        for i  in range(len(notes)): #len(notes)
             # Look at current note
             curr_note = notes[i]
             played_note_compensation = 0
             if curr_note.note == 64 and curr_note.velocity==64:
                 True
-            # print("Current Note:", notes[i])
-            # End any notes before current note
+            # Notes which finish before current note
+            finished_notes = []
             for j in range(start, i):
-                # Look at previous notes
-                # If note at index == None, already done playing the note
-
-                finished_notes = []
+                # This note is already played
                 if notes[j] == None:
                     True
-                # Subtract current offset from their duration
+                # This note should end before current note
                 elif notes[j].duration - curr_note.offset <= 0:
-                    # End the note
-                    time = notes[j].duration - played_note_compensation
-                    # TODO:
-                    # Problem: Two or more notes could end after the same note,
-                    #       but they would have different notations. If shorter
-                    #       note is added later, it's time would be negative.
-                    # Fix: Store finished notes somewhere and insert by duration left
-                    # finished_notes.append(notes[j])
-                    track.append(Message('note_on', note=notes[j].note, velocity=0, time=time))
-                    # Store this value to compensate in the next "played note"
-                    played_note_compensation += time
-                    # Set the note as played
-                    notes[j] = None
-                    if j == start:
-                        start += 1
+                    finished_notes.append(j)
+                # Note won't end yet, adjust duration accordingly
                 else:
                     notes[j].duration -= curr_note.offset
+            # Sort finished notes by which one finishes first
+            finished_notes.sort(key = lambda x: notes[x].duration)
+            for n in finished_notes:
+                time = notes[n].duration - played_note_compensation
+                track.append(Message('note_on', note=notes[n].note, velocity=0, time=time))
+                # Compensate current note's offset for new note_ends inserted
+                played_note_compensation += time
+                # Set notes as played
+                notes[n] = None
             # Add current note
             track.append(Message('note_on', note=curr_note.note, velocity=curr_note.velocity, time=curr_note.offset-played_note_compensation))
-            
+
         track.append(MetaMessage('end_of_track', time=1))
-        # print(track)
-        # midi.save(path)
-
-
+        midi.save(path)
 
     def add_note(self, note: Note):
         pass
+        
 
 
 
