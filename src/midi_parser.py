@@ -1,5 +1,6 @@
 from mido import Message, MetaMessage, MidiFile, MidiTrack, bpm2tempo, second2tick
 import os
+from copy import deepcopy
 
 class Note:
     def __init__(self, note, velocity, offset):
@@ -55,33 +56,49 @@ class Midi:
         midi = MidiFile()
         track = MidiTrack()
         midi.tracks.append(track)
-
-        notes = self.notes.copy()
-        for i  in range(len(notes)):
+        played_note_compensation = 0
+        notes = deepcopy(self.notes)
+        start = 0
+        for i  in range(15): #len(notes)
             # Look at current note
             curr_note = notes[i]
-            curr_offset = curr_note.offset
+            played_note_compensation = 0
+            if curr_note.note == 64 and curr_note.velocity==64:
+                True
+            # print("Current Note:", notes[i])
             # End any notes before current note
-            for j in range(0, i):
+            for j in range(start, i):
                 # Look at previous notes
-                prev_note = notes[j]
                 # If note at index == None, already done playing the note
-                if prev_note == None:
-                    continue
+
+                finished_notes = []
+                if notes[j] == None:
+                    True
                 # Subtract current offset from their duration
-                if prev_note.duration - curr_offset <= 0:
+                elif notes[j].duration - curr_note.offset <= 0:
                     # End the note
-                    track.append(Message('note_on', note=prev_note.note, velocity=0, time=curr_offset-prev_note.duration))
+                    time = notes[j].duration - played_note_compensation
+                    # TODO:
+                    # Problem: Two or more notes could end after the same note,
+                    #       but they would have different notations. If shorter
+                    #       note is added later, it's time would be negative.
+                    # Fix: Store finished notes somewhere and insert by duration left
+                    # finished_notes.append(notes[j])
+                    track.append(Message('note_on', note=notes[j].note, velocity=0, time=time))
+                    # Store this value to compensate in the next "played note"
+                    played_note_compensation += time
                     # Set the note as played
                     notes[j] = None
+                    if j == start:
+                        start += 1
                 else:
-                    prev_note.duration -= curr_offset
+                    notes[j].duration -= curr_note.offset
             # Add current note
-            track.append(Message('note_on', note=curr_note.note, velocity=curr_note.velocity, time=curr_note.offset))
+            track.append(Message('note_on', note=curr_note.note, velocity=curr_note.velocity, time=curr_note.offset-played_note_compensation))
             
         track.append(MetaMessage('end_of_track', time=1))
         # print(track)
-        midi.save(path)
+        # midi.save(path)
 
 
 
