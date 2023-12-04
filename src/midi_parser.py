@@ -55,19 +55,19 @@ class Midi:
         midi = MidiFile()
         track = MidiTrack()
         midi.tracks.append(track)
-        played_note_compensation = 0
         notes = deepcopy(self.notes)
         start = 0
         for i  in range(len(notes)): #len(notes)
             # Look at current note
             curr_note = notes[i]
             played_note_compensation = 0
-            if curr_note.note == 64 and curr_note.velocity==64:
-                True
             # Notes which finish before current note
             finished_notes = []
+            # Looking at previous notes
             for j in range(start, i):
                 # This note is already played
+                if all(n is None for n in notes[start:j]):
+                    start = j
                 if notes[j] == None:
                     True
                 # This note should end before current note
@@ -76,7 +76,7 @@ class Midi:
                 # Note won't end yet, adjust duration accordingly
                 else:
                     notes[j].duration -= curr_note.offset
-            # Sort finished notes by which one finishes first
+            # Sort finished notes by remaining duration
             finished_notes.sort(key = lambda x: notes[x].duration)
             for n in finished_notes:
                 time = notes[n].duration - played_note_compensation
@@ -105,9 +105,9 @@ class Midi:
 # track.append(MetaMessage('end_of_track'))
 # print(mid.tracks[1])
 # mid.save('new_song.mid')
-
-mid = Midi('../data/midis/Beethoven, Ludwig van, Für Elise, WoO 59, noAU3qDS1dA.mid')
-mid.parse()
+# mid = Midi('../data/midis/Satie, Erik, 3 Gymnopédies, _fuIMye31Gw.mid')
+# mid = Midi('../data/midis/Beethoven, Ludwig van, Für Elise, WoO 59, noAU3qDS1dA.mid')
+# mid.parse()
 # for note in mid.notes:
 #     print(note)
-mid.export("export_test.mid")
+# mid.export("export_test.mid")
