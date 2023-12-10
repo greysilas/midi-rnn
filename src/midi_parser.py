@@ -8,10 +8,10 @@ class Note:
         self.velocity = velocity
         self.offset = offset
         self.duration = None
+        # Original Duration = Normalized Duration * (Max Duration − Min Duration) + Min Duration
+        self.duration_norm = None   # Normalized duration
+        self.offset_norm = None     # Normalized offset
 
-    def set_duration(self, duration):
-        self.duration = duration
-    
     def __str__(self) -> str:
         return "(Note: " +  str(self.note) + " Velocity: " + str(self.velocity) + " Offset: " + str(self.offset) + " Duration: " + str(self.duration ) + ")"
     
@@ -24,22 +24,47 @@ class Midi:
         self.path = path
         self.notes = []
         self.midi = MidiFile(path, clip=True)
+        self.min_duration = float('inf')
+        self.max_duration = float('-inf')
+        self.min_offset = float('inf')
+        self.max_offset = float('-inf')
         
+    def update_duration_range(self, duration):
+        # Set min and max duration for duration normalization
+        self.min_duration = min(self.min_duration, duration)
+        self.max_duration = max(self.max_duration, duration)
+
+    def update_offset_range(self, offset):
+        # Set min and max offset for duration normalization
+        self.min_offset = min(self.min_offset, offset)
+        self.max_offset = max(self.max_offset, offset)
+
     def parse(self):
+        # Parse tempo
+        # metadata_track = self.midi.tracks[0]
+        # tempo = 0
+
+        # for i in range(len(metadata_track)):
+        #     if metadata_track[i].type == 'set_tempo':
+        #         tempo = metadata_track[i].tempo
+            
+        # quater_note = tempo / 4000 # length of quarter_note
+            
         track = self.midi.tracks[1]
         curr_duration = 0
-        sequence = []
         offset_compensation = 0
         for i in range(len(track)):
             curr_duration = 0
-            
+
             if track[i].type == 'control_change' or track[i].type == 'note_off' or (track[i].type == 'note_on' and track[i].velocity == 0):
                 offset_compensation += track[i].time
 
             if track[i].type == 'note_on' and track[i].velocity != 0:
-                seq_note = Note(track[i].note, track[i].velocity, track[i].time + offset_compensation)
+                # seq_note = Note(track[i].note, track[i].velocity, 0 if not (track[i].time + offset_compensation) else quater_note)
+                seq_note = Note(track[i].note, track[i].velocity, track[i].time + offset_compensation) # If we wanna use this 
+                self.notes.append(seq_note)
+                self.update_offset_range(track[i].time + offset_compensation)
                 offset_compensation = 0
-                sequence.append(seq_note)
 
                 for j in range(i + 1, len(track)):
                     curr_note = track[j]
@@ -47,9 +72,19 @@ class Midi:
 
                     if (curr_note.type == 'note_off' or (curr_note.type == 'note_on' and curr_note.velocity == 0)) and curr_note.note == seq_note.note:
                         # seq_note.offset += curr_note.time
-                        seq_note.set_duration(curr_duration)
+                        seq_note.duration = curr_duration
+                        self.update_duration_range(curr_duration)
                         break
-        self.notes = sequence.copy()
+
+        for note in self.notes:
+            # Normalized Offset = (Max Offset − Min Offset) / (Original Offset − Min Offset)
+            # Normalized Duration = (Max Duration − Min Duration) / (Original Duration − Min Duration) 
+            # note.offset_norm = (note.offset - self.min_offset) / (self.max_offset - self.min_offset)  # adding epsilon
+            note.offset_norm = (note.offset - self.min_offset) / max(self.max_offset - self.min_offset, 1e-8)
+            # note.duration_norm = (self.max_duration - self.min_duration) / (note.duration - self.min_duration + 1e-8)
+            note.duration_norm = (note.duration - self.min_duration) / max(self.max_duration - self.min_duration, 1e-8)
+            
+        return self.notes
     
     def export(self, path):
         midi = MidiFile()
@@ -91,6 +126,7 @@ class Midi:
         track.append(MetaMessage('end_of_track', time=1))
         midi.save(path)
 
+
     def add_note(self, note: Note):
         pass
         
@@ -106,8 +142,8 @@ class Midi:
 # print(mid.tracks[1])
 # mid.save('new_song.mid')
 # mid = Midi('../data/midis/Satie, Erik, 3 Gymnopédies, _fuIMye31Gw.mid')
-# mid = Midi('../data/midis/Beethoven, Ludwig van, Für Elise, WoO 59, noAU3qDS1dA.mid')
-# mid.parse()
-# for note in mid.notes:
-#     print(note)
-# mid.export("export_test.mid")
+mid = Midi('../data/midis/Beethoven, Ludwig van, Für Elise, WoO 59, noAU3qDS1dA.mid')
+mid.parse()
+# # for note in mid.notes:
+# #     print(note)
+mid.export("export_test.mid")
