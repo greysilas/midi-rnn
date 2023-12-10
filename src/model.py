@@ -3,7 +3,9 @@ import pandas
 import torch
 import matplotlib.pyplot as plt 
 import torch.nn as nn
+import torch.nn.functional as F
 from main import get_batch, BATCH_SIZE
+from midi_parser import Midi
 
 # MODEL PARAMETERS
 INPUT_SIZE = None
@@ -16,8 +18,9 @@ class midiRNN(nn.Module):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.output_size = output_size
-        self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
-        self.fc = nn.Linear(hidden_size, output_size)
+        self.rnn = nn.RNN(input_size, 2*hidden_size, batch_first=True)
+        self.fc1 = nn.Linear(2*hidden_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, 4) 
         # self.activation = nn.Tanh()
 
     def forward(self, X):
@@ -27,11 +30,13 @@ class midiRNN(nn.Module):
         # print("OUT shape:", out.shape)
         # features = torch.cat([torch.amax(h, dim=1),
         #                       torch.mean(h, dim=1)], axis=-1)
-        z = self.fc(out[:, -1, :]) # Gets the last timestep
+        out = F.relu(self.fc1(out[:, -1, :])) # Gets the last timestep
+        out = F.relu(self.fc2(out))
+
         # print("FORWARD Z shape:",z.shape)
         # y = self.activation(z) #(hidden_size, output_size)
         # print("Y shape:",y.shape)
-        return z
+        return out
 
 def accuracy(model, dataset, max=1000, device='cpu'):
     correct, total = 0, 0
@@ -52,15 +57,10 @@ def accuracy(model, dataset, max=1000, device='cpu'):
         xs, ts = get_batch(dataset, batch_size=100, block_size=256,device=device)
         y = model(xs)
         o = torch.eq(y, ts)
-        # print("Y")
-        # print(y)
-        # print("TS")
-        # print(ts)
-        # print("X shape", xs.shape)
         # print("Y shape", y.shape)
-        # print("T shape", ts.shape)
-        #print("y:", y[-1])
-        #print("t:", t)
+        # print("Ts shape", ts.shape)
+        # print(y[:2])
+        # print(ts[:2])
         if False not in o:
             correct += 1
         total +=1
@@ -91,8 +91,10 @@ def train_model(model,                # an instance of MLPModel
     #     x = xs[i]
     #     t = ts[i]  
         z = model(x)
-        # print(len(z))
-        #print(t)]
+        # print("Z")
+        # print(z)
+        # print("T")
+        # print(t)
         
         # print(z)
         # print(ts)
@@ -128,5 +130,33 @@ def train_model(model,                # an instance of MLPModel
         plt.ylabel("Loss")
         plt.legend(["Train", "Validation"])
 
-def generate_song(model):
-    pass
+def generate_song(model, seed, length=64, tempo=120, starter_size=32, device='cpu'):
+    # print("Generate song")
+    song, t = get_batch(seed, block_size=starter_size, batch_size=1, device=device)
+    song = torch.squeeze(song, dim=0)
+    # print("Song tensor:", torch.is_tensor(song))
+
+    # print(song.shape)
+    while len(song) < length:
+        next_note = model(torch.unsqueeze(song, dim=0))
+        # print("Note tensor:", torch.is_tensor(next_note))
+        # print(next_note.shape)
+        song = torch.cat((song, next_note), dim=0)
+        # print("New song shape", song.shape)
+        # Sample the next note (you might need to adjust this depending on your output space)
+        # next_note = torch.multinomial(F.softmax(next_note, dim=-1).view(-1), 1).view(1, -1)
+        # print(song)
+    # Convert to note
+    midi_file = Midi()
+    print(song)
+    print(song.shape)
+    for note in song:
+        # Create note object
+        
+        # curr_note = Note()
+        # Denormalize
+        # Add it to song
+
+        True
+    # midi_file.export("./generated_song.mid")
+    # print(song)

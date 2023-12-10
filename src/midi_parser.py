@@ -20,10 +20,11 @@ class Note:
 
 
 class Midi:
-    def __init__(self, path) -> None:
+    def __init__(self, path=None) -> None:
         self.path = path
         self.notes = []
-        self.midi = MidiFile(path, clip=True)
+        if path:
+            self.midi = MidiFile(path, clip=True)
         self.min_duration = float('inf')
         self.max_duration = float('-inf')
         self.min_offset = float('inf')

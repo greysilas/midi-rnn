@@ -9,6 +9,7 @@ import numpy as np
 import torch.optim as optim 
 import matplotlib.pyplot as plt
 import model
+import pickle
 
 
 #  GLOBALS
@@ -106,11 +107,11 @@ if __name__ == '__main__':
     train_ratio=0.8
     valid_ratio=0.2
 
-
+    print("Processing MIDIS")
     files = [f for f in os.listdir(MIDI_PATH) if os.path.isfile(os.path.join(MIDI_PATH, f))]
     
     for filename in files:
-        print(filename)
+        # print(filename)
         if filename.endswith(".midi") or filename.endswith(".mid"): 
             path = os.path.join(MIDI_PATH, filename) # if below breaks
             curr_midi = Midi(path)
@@ -121,10 +122,29 @@ if __name__ == '__main__':
             formatted_songs.append(formatted_song)
             formatted_notes.extend(formatted_song)
             total_songs += 1
-            if total_songs == 10:
-                break
+       
         else:
             continue
+
+
+    # Serialize the songs
+    with open('../data/serialized/songs10854.pkl', 'wb') as f:  # open a text file
+        pickle.dump(formatted_songs, f) # serialize the list
+    with open('../data/serialized/notes10854.pkl', 'wb') as f:  # open a text file
+        pickle.dump(formatted_notes, f) # serialize the list
+    
+ 
+    exit()
+   
+    with open('../data/serialized/songs500.pkl', 'rb') as f:  # open a text file
+        formatted_songs = pickle.load(f) # serialize the list
+    with open('../data/serialized/notes500.pkl', 'rb') as f:  # open a text file
+        formatted_notes = pickle.load(f) # serialize the list
+    
+    
+    print("Songs:", formatted_songs[0])
+    print("Notes:", formatted_notes[0])
+
 
     # print("Formatted Notes:", len(formatted_notes))
 
@@ -156,6 +176,22 @@ if __name__ == '__main__':
     print(torch.cuda.get_device_name())
     mod = model.midiRNN(4, 256, 4)
     mod = mod.to(device)
-    # train_data = torch.tensor(train_data).to(device)
-    # val_data = torch.tensor(val_data).to(device)
-    model.train_model(mod, train_data, val_data, num_epochs=1500, batch_size=64, plot_every=50, device=device)
+    # mod.train()
+    # model.train_model(mod, train_data, val_data, num_epochs=3000, batch_size=128, block_size=256,
+    #                    plot_every=250, device=device)
+    # torch.save(mod.state_dict(), './500songshidden256epoch3000bat128block256')
+    
+    
+    # mod.load_state_dict(torch.load('./500songshidden256epoch3000bat128block256'))
+    # mod.eval()
+    # torch.no_grad()
+    # model.generate_song(mod, val_data, device=device)
+    
+
+    # data = sequence of all notes
+    #   - training
+    #   - seeds
+    # 
+    # generation
+    #   - get_batch(seed) in seed, extract a random batch
+    #   - x number of notes to start, then generate after
