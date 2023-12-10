@@ -70,10 +70,14 @@ def get_batch(data, block_size, batch_size, device):
     Returns: A tuple of PyTorch tensors (x, t), where
         x - represents the input tokens, with shape (batch_size, block_size)
         y - represents the target output tokens, with shape (batch_size, block_size)
-    """
+    # """
+    # print("get_batch")
+    # print("batch size", batch_size)
+    # print("data len", len(data))
     block_size = min(len(data), block_size)
-
+    # print("block size", block_size)
     ix = torch.randint(len(data) - block_size, (batch_size,))
+    # print(ix)
     x = torch.stack([torch.tensor((data[i:i+block_size])) for i in ix])
     # t = torch.stack([torch.tensor((data[i+1:i+1+block_size])) for i in ix])
     # OR
@@ -97,6 +101,7 @@ if __name__ == '__main__':
     train_data = []
     val_data = []
     formatted_songs = []
+    formatted_notes = []
     total_songs = 0
     train_ratio=0.8
     valid_ratio=0.2
@@ -114,24 +119,25 @@ if __name__ == '__main__':
             for note in curr_midi.notes:
                 formatted_song.append((note.note, note.velocity, note.offset_norm, note.duration_norm))    
             formatted_songs.append(formatted_song)
+            formatted_notes.extend(formatted_song)
             total_songs += 1
             if total_songs == 10:
                 break
         else:
             continue
 
-      
+    # print("Formatted Notes:", len(formatted_notes))
 
     # Format data from object to tensor-able list
     # for song in all_songs:
         
 
     # Randomly split sequences into training and validation
-    random.seed(42)
-    random.shuffle(formatted_songs)
+    # random.seed(42)
+    # random.shuffle(formatted_songs)
 
-    train_data = formatted_songs[:floor(total_songs*train_ratio)] 
-    val_data = formatted_songs[floor(total_songs*train_ratio):]
+    train_data = formatted_notes[:floor(len(formatted_notes)*train_ratio)] 
+    val_data = formatted_notes[floor(len(formatted_notes)*train_ratio):]
  
     #dataset= torch.utils.data.MyIterableDataset(formatted_songs)
     
@@ -147,6 +153,9 @@ if __name__ == '__main__':
   
     # train_dataloader = torch.utils.data.DataLoader(formatted_songs, batch_size=10, shuffle=True,
     #                           collate_fn=collate_batch)
-  
-    mod = model.midiRNN(4, 128, 4)
-    model.train_model(mod, train_data, val_data, device='cpu')
+    print(torch.cuda.get_device_name())
+    mod = model.midiRNN(4, 256, 4)
+    mod = mod.to(device)
+    # train_data = torch.tensor(train_data).to(device)
+    # val_data = torch.tensor(val_data).to(device)
+    model.train_model(mod, train_data, val_data, num_epochs=1500, batch_size=64, plot_every=50, device=device)
