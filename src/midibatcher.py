@@ -3,6 +3,7 @@ import os
 import random
 import torch
 from midi_parser import Midi
+# NOTE: Not used
 class MidiBatcher:
     def __init__(self, midis, batch_size=32, drop_last=False):
         self.midis_by_length = {}
@@ -19,7 +20,6 @@ class MidiBatcher:
                         for midi_len, midis in self.midis_by_length.items()}
 
     def __iter__(self):
-        # make an iterator for every tweet length
         iters = [iter(loader) for loader in self.loaders.values()]
         while iters:
             # pick an iterator (a length)
