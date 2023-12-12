@@ -17,7 +17,6 @@ class midiRNN1(nn.Module):
         self.input_size = INPUT_SIZE
         self.hidden_size = HIDDEN_SIZE
         self.output_size = OUTPUT_SIZE
-        self.fc0 = nn.Linear(self.input_size, self.hidden_size)
         self.rnn = nn.LSTM(self.input_size, self.hidden_size, batch_first=True)
         self.fc1 = nn.Linear(self.hidden_size, self.output_size)
          
