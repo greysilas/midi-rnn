@@ -104,7 +104,7 @@ def train_model(model,                # an instance of MLPModel
         for s in range(num_iters):
 
             # Get a random slice from our training
-            i_start = random.randint(0, len(train_data) - block_size)
+            i_start = random.randint(0, len(train_data) - block_size - 1)
             i_end = i_start + block_size + 1
 
             sequence = train_data[i_start: i_end - 1]
@@ -259,7 +259,7 @@ def get_batch(data, block_size, batch_size, device):
 def generate_song(model, seed, offset_step, duration_step, length=64, use_dist_sample=True, starter_size=32, device='cpu'):
     model.reset_hidden()
 
-    i_start = random.randint(0, len(seed) - starter_size)
+    i_start = random.randint(0, len(seed) - starter_size - 1)
     i_end = i_start + starter_size + 1
 
     song = seed[i_start: i_end - 1]
