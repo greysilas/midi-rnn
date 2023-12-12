@@ -12,6 +12,7 @@ from midi_parser import Midi, Note
 INPUT_SIZE = 4
 HIDDEN_SIZE = 512
 OUTPUT_SIZE = 4
+LSTM_LAYERS = 3
 
 class midiRNN4(nn.Module):
     def __init__(self, note_classes, velocity_classes, offset_classes, duration_classes, device):
@@ -25,7 +26,7 @@ class midiRNN4(nn.Module):
 
         self.hidden_size = HIDDEN_SIZE
         self.output_size = OUTPUT_SIZE
-        self.num_layers = 3
+        self.num_layers = LSTM_LAYERS
         self.device = device
        
         self.note_embedding = nn.Embedding(note_classes, self.hidden_size, device=device)
