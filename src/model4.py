@@ -206,6 +206,9 @@ def train_model(model,                # an instance of MLPModel
                 # train_acc.append(ta)
                 # val_acc.append(va)
                 print("[" + str(iter_count) + "]:","Epoch:",e+1, "Iteration:", s+1, "Loss:", float(loss_per_seq))
+        if e % 5 == 0:
+            model_state_name = './model4weights' + 'epoch' + str(e)
+            torch.save(model.state_dict(), model_state_name)
     if plot:
         plt.figure()
         plt.plot(iters[:len(train_loss)], train_loss)

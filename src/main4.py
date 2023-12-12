@@ -84,7 +84,7 @@ if __name__ == '__main__':
     print("Loading data...")
     # with open('../data/serialized/songs2500.pkl', 'rb') as f:  # open a text file
     #     formatted_songs = pickle.load(f) # serialize the list
-    with open('../data/serialized/notes250.pkl', 'rb') as f:  # open a text file
+    with open('../data/serialized/notes2500.pkl', 'rb') as f:  # open a text file
         formatted_notes = pickle.load(f) # serialize the list
     print("Data loaded.")
 
@@ -124,7 +124,7 @@ if __name__ == '__main__':
     # val_data = [a[0] for a in val_data]
 
     device = 'cuda' if torch.cuda.is_available()  else 'cpu'
-    device = 'cpu'
+    # device = 'cpu'
 
     print("Device:", device)
 
@@ -134,12 +134,12 @@ if __name__ == '__main__':
     mod = mod.to(device)
     # train_data = train_data.to(device)
     # val_data = val_data.to(device)
-    trainModel = False
+    trainModel = True
     model_state_name = './model4weights'
     if trainModel:
         mod.train()
-        model4.train_model(mod, train_data, num_epochs=5, batch_size=25, block_size=25,
-                        plot_every=100, device=device, plot=False)
+        model4.train_model(mod, train_data, num_epochs=50, batch_size=25, block_size=25,
+                        plot_every=500, device=device, plot=True)
         torch.save(mod.state_dict(), model_state_name)
     else:
      
