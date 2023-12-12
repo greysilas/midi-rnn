@@ -3,11 +3,11 @@ import os
 from copy import deepcopy
 
 class Note:
-    def __init__(self, note, velocity, offset):
+    def __init__(self, note, velocity, offset, duration=None):
         self.note = note
         self.velocity = velocity
         self.offset = offset
-        self.duration = None
+        self.duration = duration
         # Original Duration = Normalized Duration * (Max Duration − Min Duration) + Min Duration
         self.duration_norm = None   # Normalized duration
         self.offset_norm = None     # Normalized offset
@@ -91,6 +91,8 @@ class Midi:
         midi = MidiFile()
         track = MidiTrack()
         midi.tracks.append(track)
+        print("Type:", type(self.notes))
+        print(self.notes)
         notes = deepcopy(self.notes)
         start = 0
         for i  in range(len(notes)): #len(notes)
@@ -132,19 +134,3 @@ class Midi:
         pass
         
 
-
-
-# mid = MidiFile('../data/midis/Beethoven, Ludwig van, Für Elise, WoO 59, noAU3qDS1dA.mid', clip=True)
-# print(mid.tracks[1])
-# track = mid.tracks[1]
-# track.pop()
-# track.append(Message('note_on', channel=0, note=60, velocity=64, time=0))
-# track.append(MetaMessage('end_of_track'))
-# print(mid.tracks[1])
-# mid.save('new_song.mid')
-# mid = Midi('../data/midis/Satie, Erik, 3 Gymnopédies, _fuIMye31Gw.mid')
-mid = Midi('../data/midis/Beethoven, Ludwig van, Für Elise, WoO 59, noAU3qDS1dA.mid')
-mid.parse()
-# # for note in mid.notes:
-# #     print(note)
-mid.export("export_test.mid")
