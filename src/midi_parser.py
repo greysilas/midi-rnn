@@ -91,8 +91,6 @@ class Midi:
         midi = MidiFile()
         track = MidiTrack()
         midi.tracks.append(track)
-        print("Type:", type(self.notes))
-        print(self.notes)
         notes = deepcopy(self.notes)
         start = 0
         for i  in range(len(notes)): #len(notes)

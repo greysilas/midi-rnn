@@ -9,53 +9,72 @@ from torch.autograd import Variable
 from midi_parser import Midi, Note
 
 # HYPERPARAMETERS
-INPUT_SIZE = 128
+INPUT_SIZE = 4
 HIDDEN_SIZE = 512
-OUTPUT_SIZE = 128
+OUTPUT_SIZE = 4
 
 class midiRNN4(nn.Module):
-    def __init__(self, device):
+    def __init__(self, note_classes, velocity_classes, offset_classes, duration_classes, device):
         super(midiRNN4, self).__init__()
-        self.input_size = INPUT_SIZE
+
+
+        self.note_classes = note_classes
+        self.velocity_classes = velocity_classes
+        self.offset_classes = offset_classes
+        self.duration_classes = duration_classes
+
         self.hidden_size = HIDDEN_SIZE
         self.output_size = OUTPUT_SIZE
         self.num_layers = 3
         self.device = device
-        # self.fc0 = nn.Linear(input_size, hidden_size)
-        self.emb = nn.Embedding(self.input_size, self.hidden_size, device=device)
-        self.rnn = nn.LSTM(self.hidden_size, self.hidden_size, batch_first=True, num_layers=self.num_layers)
-        self.fc1 = nn.Linear(self.hidden_size, self.output_size)
+       
+        self.note_embedding = nn.Embedding(note_classes, self.hidden_size, device=device)
+        self.velocity_embedding = nn.Embedding(velocity_classes, self.hidden_size, device=device)
+        self.offset_embedding = nn.Embedding(offset_classes, self.hidden_size, device=device)
+        self.duration_embedding =  nn.Embedding(duration_classes, self.hidden_size, device=device)
+
+        self.rnn = nn.LSTM(self.hidden_size*4, self.hidden_size*4, batch_first=True, num_layers=self.num_layers)
+        self.fc1 = nn.Linear(self.hidden_size*4, note_classes + velocity_classes + offset_classes + duration_classes)
         self.dropout = nn.Dropout()
         # self.fc2 = nn.Linear(hidden_size,output_size ) 
     
     def reset_hidden(self):
         #TODO remove variable if this works
-        self.hidden = (Variable(torch.zeros(self.num_layers, 1, self.hidden_size)).to(self.device),
-                        Variable(torch.zeros(self.num_layers, 1, self.hidden_size)).to(self.device))
+        self.hidden = (Variable(torch.zeros(self.num_layers, 1, self.hidden_size*4)).to(self.device),
+                        Variable(torch.zeros(self.num_layers, 1, self.hidden_size*4)).to(self.device))
  
     def forward(self, X):
         # print("X shape before fc0:", X.shape)
         # out = self.fc0(X.float())
         
-        self.emb.to(self.device)
-        embeds = self.emb(X.view(1, -1))
-        embeds.to(self.device)
+       # self.emb.to(self.device)
+        #embeds = self.emb(X.view(1, -1))
+        #embeds.to(self.device)
 
-        out, self.hidden = self.rnn(embeds.view(1,1,-1), self.hidden) # (block_size, hidden_size)
+        note_embeds = self.note_embedding(X[0])
+        velocity_embeds = self.velocity_embedding(X[1])
+        offset_embeds = self.offset_embedding(X[2])
+        duration_embeds = self.offset_embedding(X[3])
+ 
+        input_concat = torch.cat((note_embeds, velocity_embeds, offset_embeds, duration_embeds))
+        
+
+        # embedding = self.fc0(X.unsqueeze(0))
+      
+        out, self.hidden = self.rnn(input_concat.unsqueeze(0).unsqueeze(0), self.hidden) # (block_size, hidden_size)
 
         out = self.dropout(out)
-        # print("OUT shape:", out.shape)
-        # features = torch.cat([torch.amax(h, dim=1),
-        #                       torch.mean(h, dim=1)], axis=-1)
-        out = self.fc1(out.view(1,-1)) # Gets the last timestep
-        
-        # print("Out prob dist: ", out)
-        # print("Highest prob: ", torch.max(out))
+       
+        out = self.fc1(out.view(1,-1))  
 
-        # print("FORWARD Z shape:",z.shape)
-        # y = self.activation(z) #(hidden_size, output_size)
-        # print("Y shape:",y.shape)
-        return out
+        
+        note = out[:, :self.note_classes]
+        velocity = out[:, self.note_classes: self.note_classes + self.velocity_classes]
+        offset = out[:, self.note_classes + self.velocity_classes: self.note_classes + self.velocity_classes + self.offset_classes]
+        duration = out[:, self.note_classes + self.velocity_classes + self.offset_classes:]
+     
+        
+        return note, velocity, offset, duration
 
 def train_model(model,                # an instance of MLPModel
                 train_data,           # training data
@@ -94,7 +113,7 @@ def train_model(model,                # an instance of MLPModel
             # Convert sequences to tensor
             # print("SEQUENCE:", sequence.shape)
             # print("TARGETS:", targets.shape)
-
+    
             sequence = sequence.to(device)
             targets = targets.to(device)
             # x, t = get_batch(train_data, block_size=block_size, batch_size=batch_size, device=device)
@@ -108,10 +127,22 @@ def train_model(model,                # an instance of MLPModel
             prev_pred = None
             repeats = 0
             for i, char in enumerate(sequence):
+              
                 output = model(char)
                 # print(output)
                 # print(targets[i])
-                pred = torch.argmax(output, dim=-1).unsqueeze(0)
+
+              
+               
+                # Compute loss on the 4 values 
+                loss = criterion(output[0], targets[i][0].unsqueeze(0))     # Note loss
+                loss += criterion(output[1], targets[i][1].unsqueeze(0))    # Velocity loss
+                loss += criterion(output[2], targets[i][2].unsqueeze(0))    # Offset loss
+                loss += criterion(output[3], targets[i][3].unsqueeze(0))    # Duration loss
+
+               
+                # Penalize repeats
+                pred = torch.argmax(output[0], dim=-1).unsqueeze(0)
                 if(pred == prev_pred):
                     repeats += 1
                 else:
@@ -123,11 +154,12 @@ def train_model(model,                # an instance of MLPModel
                 if repeats > 2:
                     repeat_loss -= 2**(repeats-1)
                 
-                loss += criterion(output, targets[i].unsqueeze(0)) + repeat_loss
+
+                loss += repeat_loss
 
 
 
-            l1_regularization = 0
+            # l1_regularization = 0
             
             # for param in model.parameters():
             #     l1_regularization += torch.norm(param, 1)**2
@@ -223,7 +255,7 @@ def get_batch(data, block_size, batch_size, device):
     return x, t
 
 
-def generate_song(model, seed, length=64, tempo=120, starter_size=32, device='cpu'):
+def generate_song(model, seed, offset_step, duration_step, length=64, use_dist_sample=True, starter_size=32, device='cpu'):
     model.reset_hidden()
 
     i_start = random.randint(0, len(seed) - starter_size)
@@ -231,49 +263,85 @@ def generate_song(model, seed, length=64, tempo=120, starter_size=32, device='cp
 
     song = seed[i_start: i_end - 1]
     song = torch.tensor(song)
+    
+   
     song = song.to(device)
-    # song = torch.squeeze(song, dim=0)
+   
     # print("Song tensor:", torch.is_tensor(song))
     
     for i in range(song.shape[0]-1):
         _ = model(song[i])
 
+
     for j in range(length):
-        out = model(song[-1]).data.view(-1)
+        note_z, velocity_z, offset_z, duration_z = model(song[-1])
         
+
+        if use_dist_sample:
+            note_dist = F.softmax(note_z[0], dim=-1).cpu()
+            note_dist = np.array(note_dist.detach().numpy())
+
+            velocity_dist = F.softmax(velocity_z[0], dim=-1).cpu()
+            velocity_dist = np.array(velocity_dist.detach().numpy())
+
+            offset_dist = F.softmax(offset_z[0], dim=-1).cpu()
+            offset_dist = np.array(offset_dist.detach().numpy())
+
+            duration_dist = F.softmax(duration_z[0], dim=-1).cpu()
+            duration_dist = np.array(duration_dist.detach().numpy())
+
+            # We need to do this to fix a known np issue
+            note_dist = note_dist / np.sum(note_dist)
+            velocity_dist = velocity_dist / np.sum(velocity_dist)
+            offset_dist = offset_dist / np.sum(offset_dist)
+            duration_dist = duration_dist / np.sum(duration_dist)
+            
+            note_pred = np.random.choice(len(note_dist), p=note_dist)
+            velocity_pred = np.random.choice(len(velocity_dist), p=velocity_dist)
+            offset_pred = np.random.choice(len(offset_dist), p=offset_dist)
+            duration_pred =  np.random.choice(len(duration_dist), p=duration_dist)
+
+            pred = (note_pred, velocity_pred, offset_pred, duration_pred)
+
+        else:
+            note_pred = torch.argmax(note_z[0], dim=-1).unsqueeze(0).item()
+            velocity_pred = torch.argmax(velocity_z[0], dim=-1).unsqueeze(0).item()
+            offset_pred = torch.argmax(offset_z[0], dim=-1).unsqueeze(0).item()
+            duration_pred = torch.argmax(duration_z[0], dim=-1).unsqueeze(0).item()
+            
+            pred = (note_pred, velocity_pred, offset_pred, duration_pred)
+        
+        #print(pred)
+
+        if j % 10 == 0:
+            print("Generating", str(j / length * 100) + "%")
+        
+        pred_tensor = torch.tensor(pred).unsqueeze(0).to(device)
+
+      
+        
+
         #dist = out / np.sum(out)
         #print(out.shape)
-        dist = F.softmax(out, dim=-1).cpu()
         # We can either use  a probability distribution or simply take the maximum
-        pred = torch.argmax(dist, dim=-1).unsqueeze(0).to(device)
-        song = torch.cat((song, pred), dim=0)
+        song = torch.cat((song, pred_tensor), dim=0)
+
+       
 
 
-        # dist = np.array(out)
+        # dist_note = F.softmax(out[0], dim=-1).cpu()
+        # dist = np.array(dist)
         # dist = dist / np.sum(dist) # to fix a known np issue
         # pred = np.random.choice(len(dist), p=dist)
         # # Add predicted character to string and use as next input        
         # song = torch.cat((song, torch.tensor(pred).unsqueeze(0).to(device)), dim=0)
-    
-    
-    print(song)
-
-    # print(song.shape)
-    # while song.shape[0] < length:
-
-    #     next_note = model(song.unsqueeze(dim=0))
-
-    #     print(next_note.shape)
-    #     print(song.shape)
-    #     song = torch.cat((song, next_note), dim=0)
-
-    exit()
-
+   
+  
     midi_file = Midi()
-    print('goofy ahh')
-    print([song])
+    
     for note in song:
-        curr_note = Note(note[0].int().item(), note[1].int().item(), 500, 1200)
-        
+        curr_note = Note(note[0].item(), note[1].item(), note[2].item() * offset_step, note[3].item() * duration_step)
         midi_file.notes.append(curr_note)
-    midi_file.export("./generated_song.mid")    
+
+    
+    midi_file.export("./generated_song1.mid")    
