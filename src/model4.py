@@ -64,9 +64,9 @@ class midiRNN4(nn.Module):
       
         out, self.hidden = self.rnn(input_concat.unsqueeze(0).unsqueeze(0), self.hidden) # (block_size, hidden_size)
 
-        out = self.dropout(out)
-       
         out = self.fc1(out.view(1,-1))  
+       
+        out = self.dropout(out)
 
         
         note = out[:, :self.note_classes]
@@ -206,7 +206,7 @@ def train_model(model,                # an instance of MLPModel
                 # train_acc.append(ta)
                 # val_acc.append(va)
                 print("[" + str(iter_count) + "]:","Epoch:",e+1, "Iteration:", s+1, "Loss:", float(loss_per_seq))
-        if e % 5 == 0:
+        if e % 20 == 0:
             model_state_name = './model4weights' + 'epoch' + str(e)
             torch.save(model.state_dict(), model_state_name)
     if plot:
@@ -259,7 +259,7 @@ def get_batch(data, block_size, batch_size, device):
     return x, t
 
 
-def generate_song(model, seed, offset_step, duration_step, length=64, use_dist_sample=True, starter_size=32, device='cpu'):
+def generate_song(model, seed, offset_step, duration_step, length=64, use_dist_sample=True, starter_size=32, device='cpu', filename="generated_song"):
     model.reset_hidden()
 
     i_start = random.randint(0, len(seed) - starter_size - 1)
@@ -348,4 +348,4 @@ def generate_song(model, seed, offset_step, duration_step, length=64, use_dist_s
         midi_file.notes.append(curr_note)
 
     
-    midi_file.export("./generated_song1.mid")    
+    midi_file.export("./" + filename + ".mid")    
